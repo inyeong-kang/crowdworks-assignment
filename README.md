@@ -6,8 +6,8 @@
 
 1. 화면 구성
 
-- 왼쪽: PDF 렌더링 (예: react-pdf 또는 pdfjs-dist 활용)
-- 오른쪽: 파싱된 JSON 데이터를 텍스트 블록 형태로 렌더링
+- 왼쪽: PDF 렌더링 (예: react-pdf 또는 pdfjs-dist 활용) ✅
+- 오른쪽: 파싱된 JSON 데이터를 텍스트 블록 형태로 렌더링 ✅
 
 2. 마우스 인터랙션 (PDF → JSON)
 
