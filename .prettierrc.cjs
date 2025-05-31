@@ -1,6 +1,12 @@
 module.exports = {
     plugins: ['@trivago/prettier-plugin-sort-imports'],
-    importOrder: ['^react', 'styled-components', '^@/(.*)$', '^[./]'],
+    importOrder: [
+        '^react',
+        '^pdfjs-dist',
+        '^styled-components',
+        '^@/(.*)$',
+        '^[./]',
+    ],
     semi: true,
     trailingComma: 'all',
     singleQuote: true,
