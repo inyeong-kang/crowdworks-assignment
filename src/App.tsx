@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { JSONViewer, PDFViewer, Preview, Tab } from '@/components';
-import { PaginationProvider } from '@/contexts';
+import { PaginationProvider, TabProvider, useTab } from '@/contexts';
 import { GlobalStyle } from '@/styles';
 import { DoclingDocument } from '@/types';
 import { loadJSON } from '@/utils';
@@ -39,16 +39,12 @@ const ContentWrapper = styled.div`
     overflow: auto;
 `;
 
-function App() {
-    const [activeTab, setActiveTab] = useState<'preview' | 'json'>('preview');
+const HomePage = () => {
+    const { activeTab, setActiveTab, tabItems } = useTab();
+
     const [jsonData, setJsonData] = useState<DoclingDocument | null>(null);
     const [highlightedRef, setHighlightedRef] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    const tabItems = [
-        { id: 'preview', label: 'Preview' },
-        { id: 'json', label: 'JSON' },
-    ];
 
     useEffect(() => {
         loadJSON({
@@ -73,42 +69,50 @@ function App() {
     return (
         <>
             <GlobalStyle />
-            <PaginationProvider>
-                <AppContainer>
-                    <PDFContainer>
-                        <PDFViewer
-                            url="/1.report.pdf"
-                            jsonData={jsonData}
-                            onHighlightChange={setHighlightedRef}
-                            pageWidth={jsonData?.pages?.['1']?.size?.width}
-                            pageHeight={jsonData?.pages?.['1']?.size?.height}
-                            highlightedRef={highlightedRef}
-                        />
-                    </PDFContainer>
-                    <ContentContainer>
-                        <Tab
-                            items={tabItems}
-                            activeTab={activeTab}
-                            onTabChange={(tabId) =>
-                                setActiveTab(tabId as 'preview' | 'json')
-                            }
-                        />
-                        <ContentWrapper>
-                            {activeTab === 'preview' ? (
-                                <Preview
-                                    data={jsonData}
-                                    highlightedRef={highlightedRef}
-                                    onHighlightChange={setHighlightedRef}
-                                />
-                            ) : (
-                                <JSONViewer data={jsonData} />
-                            )}
-                        </ContentWrapper>
-                    </ContentContainer>
-                </AppContainer>
-            </PaginationProvider>
+            <AppContainer>
+                <PDFContainer>
+                    <PDFViewer
+                        url="/1.report.pdf"
+                        jsonData={jsonData}
+                        onHighlightChange={setHighlightedRef}
+                        pageWidth={jsonData?.pages?.['1']?.size?.width}
+                        pageHeight={jsonData?.pages?.['1']?.size?.height}
+                        highlightedRef={highlightedRef}
+                    />
+                </PDFContainer>
+                <ContentContainer>
+                    <Tab
+                        items={tabItems}
+                        activeTab={activeTab}
+                        onTabChange={(tabId) =>
+                            setActiveTab(tabId as 'preview' | 'json')
+                        }
+                    />
+                    <ContentWrapper>
+                        {activeTab === 'preview' ? (
+                            <Preview
+                                data={jsonData}
+                                highlightedRef={highlightedRef}
+                                onHighlightChange={setHighlightedRef}
+                            />
+                        ) : (
+                            <JSONViewer data={jsonData} />
+                        )}
+                    </ContentWrapper>
+                </ContentContainer>
+            </AppContainer>
         </>
     );
-}
+};
 
-export default App;
+const AppWithProviders = () => {
+    return (
+        <TabProvider>
+            <PaginationProvider>
+                <HomePage />
+            </PaginationProvider>
+        </TabProvider>
+    );
+};
+
+export default AppWithProviders;
