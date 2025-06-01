@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { JSONViewer, PDFViewer, Preview, Tab } from '@/components';
 import { GlobalStyle } from '@/styles';
+import { DoclingDocument } from '@/types';
 
 const AppContainer = styled.div`
     display: flex;
@@ -11,7 +12,11 @@ const AppContainer = styled.div`
 `;
 
 const PDFContainer = styled.div`
-    width: 40%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 50%;
     height: 100%;
     padding: 20px;
     background-color: #f5f5f5;
@@ -19,7 +24,7 @@ const PDFContainer = styled.div`
 `;
 
 const ContentContainer = styled.div`
-    width: 60%;
+    width: 50%;
     height: 100%;
     padding: 20px;
     background-color: #f5f5f5;
@@ -33,31 +38,73 @@ const ContentWrapper = styled.div`
 `;
 
 function App() {
-    const [activeTab, setActiveTab] = useState<string>('preview');
+    const [activeTab, setActiveTab] = useState<'preview' | 'json'>('preview');
+    const [jsonData, setJsonData] = useState<DoclingDocument | null>(null);
+    const [highlightedRef, setHighlightedRef] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const tabItems = [
         { id: 'preview', label: 'Preview' },
         { id: 'json', label: 'JSON' },
     ];
 
+    useEffect(() => {
+        const loadJSON = async () => {
+            try {
+                const response = await fetch('/1.report.json');
+                if (!response.ok) {
+                    throw new Error('Failed to load JSON');
+                }
+                const data = await response.json();
+                setJsonData(data);
+            } catch (err) {
+                setError(
+                    err instanceof Error ? err.message : 'Failed to load JSON',
+                );
+                console.error('Error loading JSON:', err);
+            }
+        };
+
+        loadJSON();
+    }, []);
+
+    if (error) {
+        return <div>Error: {error}</div>;
+    }
+
+    if (!jsonData) {
+        return <div>Loading...</div>;
+    }
+
     return (
         <>
             <GlobalStyle />
             <AppContainer>
                 <PDFContainer>
-                    <PDFViewer url="/1.report.pdf" />
+                    <PDFViewer
+                        url="/1.report.pdf"
+                        jsonData={jsonData}
+                        onHighlightChange={setHighlightedRef}
+                        pageWidth={jsonData?.pages?.['1']?.size?.width}
+                        pageHeight={jsonData?.pages?.['1']?.size?.height}
+                    />
                 </PDFContainer>
                 <ContentContainer>
                     <Tab
                         items={tabItems}
                         activeTab={activeTab}
-                        onTabChange={setActiveTab}
+                        onTabChange={(tabId) =>
+                            setActiveTab(tabId as 'preview' | 'json')
+                        }
                     />
                     <ContentWrapper>
                         {activeTab === 'preview' ? (
-                            <Preview url="/1.report.json" />
+                            <Preview
+                                data={jsonData}
+                                highlightedRef={highlightedRef}
+                            />
                         ) : (
-                            <JSONViewer url="/1.report.json" />
+                            <JSONViewer data={jsonData} />
                         )}
                     </ContentWrapper>
                 </ContentContainer>

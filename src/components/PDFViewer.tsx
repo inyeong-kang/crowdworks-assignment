@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import styled from 'styled-components';
+import { BoundingBox, DoclingDocument } from '@/types';
 
 // PDF.js 워커 설정
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -8,13 +9,27 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     import.meta.url,
 ).toString();
 
+// PDF 페이지 크기 상수
+const DEFAULT_PAGE_HEIGHT = 842;
+const DEFAULT_PAGE_WIDTH = 595;
+
 interface PDFViewerProps {
     url: string;
     onPageLoad?: (page: pdfjsLib.PDFPageProxy) => void;
+    jsonData: DoclingDocument;
+    onHighlightChange: (ref: string | null) => void;
+    pageWidth?: number;
+    pageHeight?: number;
+}
+
+interface BoundingBoxWithType extends BoundingBox {
+    type: string;
+    ref: string;
 }
 
 const ViewerContainer = styled.div`
     width: 100%;
+    min-width: 50%
     height: 100%;
     overflow: auto;
     position: relative;
@@ -23,10 +38,17 @@ const ViewerContainer = styled.div`
     flex-direction: column;
 `;
 
+const CanvasContainer = styled.div`
+    position: relative;
+    width: ${DEFAULT_PAGE_WIDTH}px;
+    height: ${DEFAULT_PAGE_HEIGHT}px;
+    flex: 1;
+`;
+
 const Canvas = styled.canvas`
     display: block;
-    width: 100%;
-    height: auto;
+    width: ${DEFAULT_PAGE_WIDTH}px;
+    height: ${DEFAULT_PAGE_HEIGHT}px;
     flex: 1;
 `;
 
@@ -71,12 +93,40 @@ const PageInfo = styled.div`
     color: #495057;
 `;
 
-export const PDFViewer = ({ url, onPageLoad }: PDFViewerProps) => {
+const HighlightOverlay = styled.div<{ bbox: BoundingBox }>`
+    position: absolute;
+    left: ${(props) => props.bbox.l}px;
+    top: ${(props) => DEFAULT_PAGE_HEIGHT - props.bbox.t}px;
+    width: ${(props) => props.bbox.r - props.bbox.l}px;
+    height: ${(props) => props.bbox.t - props.bbox.b}px;
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 2px solid rgba(0, 123, 255, 0.5);
+    pointer-events: none;
+`;
+
+export const PDFViewer = ({
+    url,
+    onPageLoad,
+    jsonData,
+    onHighlightChange,
+    pageWidth = DEFAULT_PAGE_WIDTH,
+    pageHeight = DEFAULT_PAGE_HEIGHT,
+}: PDFViewerProps) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+
     const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
-    const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+    const [mousePosition, setMousePosition] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+    const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxWithType[]>(
+        [],
+    );
+    const [currentHighlight, setCurrentHighlight] =
+        useState<BoundingBox | null>(null);
 
     const handlePrevPage = () => {
         if (currentPage > 1) {
@@ -88,6 +138,27 @@ export const PDFViewer = ({ url, onPageLoad }: PDFViewerProps) => {
         if (currentPage < totalPages) {
             setCurrentPage(currentPage + 1);
         }
+    };
+
+    const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+
+        // 캔버스 내에서의 상대 좌표 계산
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // PDF 좌표계로 변환 (y축 반전)
+        const pdfX = x;
+        const pdfY = pageHeight - y;
+
+        setMousePosition({ x: pdfX, y: pdfY });
+    };
+
+    const handleMouseLeave = () => {
+        setMousePosition(null);
     };
 
     useEffect(() => {
@@ -110,7 +181,6 @@ export const PDFViewer = ({ url, onPageLoad }: PDFViewerProps) => {
             if (!pdf || !canvasRef.current) return;
 
             try {
-                // 이전 렌더링 작업이 있다면 취소
                 if (renderTaskRef.current) {
                     renderTaskRef.current.cancel();
                     renderTaskRef.current = null;
@@ -158,9 +228,99 @@ export const PDFViewer = ({ url, onPageLoad }: PDFViewerProps) => {
         };
     }, [pdf, currentPage, onPageLoad]);
 
+    useEffect(() => {
+        if (!jsonData) {
+            return;
+        }
+
+        const extractBoundingBoxes = () => {
+            const boxes: BoundingBoxWithType[] = [];
+
+            // texts에서 bbox 추출
+            jsonData.texts.forEach((text) => {
+                text.prov?.forEach((p) => {
+                    boxes.push({
+                        ...p.bbox,
+                        type: 'text',
+                        ref: text.self_ref,
+                    });
+                });
+            });
+
+            // pictures에서 bbox 추출
+            jsonData.pictures.forEach((picture) => {
+                picture.prov?.forEach((p) => {
+                    boxes.push({
+                        ...p.bbox,
+                        type: 'picture',
+                        ref: picture.self_ref,
+                    });
+                });
+            });
+
+            // tables에서 bbox 추출
+            jsonData.tables.forEach((table) => {
+                table.prov?.forEach((p) => {
+                    boxes.push({
+                        ...p.bbox,
+                        type: 'table',
+                        ref: table.self_ref,
+                    });
+                });
+            });
+
+            setBoundingBoxes(boxes);
+        };
+
+        extractBoundingBoxes();
+    }, [jsonData]);
+
+    useEffect(() => {
+        if (mousePosition && boundingBoxes.length > 0) {
+            const currentBox = boundingBoxes.find((box) => {
+                return (
+                    mousePosition.x >= box.l &&
+                    mousePosition.x <= box.r &&
+                    mousePosition.y >= box.b &&
+                    mousePosition.y <= box.t
+                );
+            });
+
+            if (currentBox) {
+                setCurrentHighlight({
+                    l: currentBox.l,
+                    t: currentBox.t,
+                    r: currentBox.r,
+                    b: currentBox.b,
+                    coord_origin: currentBox.coord_origin,
+                });
+                onHighlightChange(currentBox.ref);
+            } else {
+                setCurrentHighlight(null);
+                onHighlightChange(null);
+            }
+        } else {
+            setCurrentHighlight(null);
+            onHighlightChange(null);
+        }
+    }, [mousePosition, boundingBoxes, onHighlightChange]);
+
     return (
         <ViewerContainer>
-            <Canvas ref={canvasRef} />
+            <CanvasContainer>
+                <Canvas
+                    ref={canvasRef}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                    style={{
+                        width: `${pageWidth}px`,
+                        height: `${pageHeight}px`,
+                    }}
+                />
+                {currentHighlight && (
+                    <HighlightOverlay bbox={currentHighlight} />
+                )}
+            </CanvasContainer>
             <PageControls>
                 <PageButton
                     onClick={handlePrevPage}
