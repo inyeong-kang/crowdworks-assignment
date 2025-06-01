@@ -1,12 +1,19 @@
-export interface TextItem {
-    self_ref: string;
-    content: string;
-    type: string;
-    orig?: string;
+export interface BoundingBox {
+    l: number;
+    t: number;
+    r: number;
+    b: number;
+    coord_origin: string;
     text?: string;
 }
 
-export interface PictureItem {
+export interface Prov {
+    page_no: number;
+    bbox: BoundingBox;
+    charspan?: [number, number];
+}
+
+export interface BaseItem {
     self_ref: string;
     parent: {
         $ref: string;
@@ -16,17 +23,17 @@ export interface PictureItem {
     }[];
     content_layer: string;
     label: string;
-    prov: {
-        page_no: number;
-        bbox: {
-            l: number;
-            t: number;
-            r: number;
-            b: number;
-            coord_origin: string;
-        };
-        charspan: number[];
-    }[];
+    prov: Prov[];
+}
+
+export interface TextItem extends BaseItem {
+    content: string;
+    type: string;
+    orig?: string;
+    text?: string;
+}
+
+export interface PictureItem extends BaseItem {
     image: {
         mimetype: string;
         dpi: number;
@@ -39,13 +46,7 @@ export interface PictureItem {
 }
 
 export interface TableCell {
-    bbox: {
-        l: number;
-        t: number;
-        r: number;
-        b: number;
-        coord_origin: string;
-    };
+    bbox: BoundingBox;
     row_span: number;
     col_span: number;
     start_row_offset_idx: number;
@@ -58,27 +59,7 @@ export interface TableCell {
     row_section: boolean;
 }
 
-export interface TableItem {
-    self_ref: string;
-    parent: {
-        $ref: string;
-    };
-    children: {
-        $ref: string;
-    }[];
-    content_layer: string;
-    label: string;
-    prov: {
-        page_no: number;
-        bbox: {
-            l: number;
-            t: number;
-            r: number;
-            b: number;
-            coord_origin: string;
-        };
-        charspan: number[];
-    }[];
+export interface TableItem extends BaseItem {
     data: {
         table_cells: TableCell[];
         num_rows: number;
@@ -101,16 +82,41 @@ export interface DoclingNode {
     };
 }
 
-export interface DoclingDocument {
-    texts: TextItem[];
-    tables: TableItem[];
-    pictures: PictureItem[];
-    key_value_items: unknown[];
-    body: DoclingNode;
-    furniture: DoclingNode;
-    groups: DoclingNode[];
+interface PageSize {
+    width: number;
+    height: number;
 }
 
-export interface PreviewProps {
-    url: string;
+interface PageImage {
+    mimetype: string;
+    dpi: number;
+}
+
+interface Page {
+    size: PageSize;
+    image: PageImage;
+}
+
+interface Pages {
+    [key: string]: Page;
+}
+
+export interface GroupItem {
+    self_ref: string;
+    parent: {
+        $ref: string;
+    };
+    content_layer: string;
+    label: string;
+    prov: Prov[];
+    children: DoclingNode[];
+}
+
+export interface DoclingDocument {
+    texts: TextItem[];
+    pictures: PictureItem[];
+    tables: TableItem[];
+    groups: GroupItem[];
+    body: DoclingNode;
+    pages: Pages;
 }
