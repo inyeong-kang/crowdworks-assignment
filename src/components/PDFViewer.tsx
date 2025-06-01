@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import styled from 'styled-components';
+import { Pagination } from '@/components';
+import { usePagination } from '@/contexts';
 import { BoundingBox, DoclingDocument } from '@/types';
 
 // PDF.js 워커 설정
@@ -53,47 +55,6 @@ const Canvas = styled.canvas`
     flex: 1;
 `;
 
-const PageControls = styled.div`
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 8px 16px;
-    background-color: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
-    z-index: 10;
-`;
-
-const PageButton = styled.button`
-    padding: 6px 12px;
-    border: none;
-    border-radius: 4px;
-    background-color: #f8f9fa;
-    color: #212529;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s ease;
-
-    &:hover {
-        background-color: #e9ecef;
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-`;
-
-const PageInfo = styled.div`
-    font-size: 14px;
-    color: #495057;
-`;
-
 const HighlightOverlay = styled.div<{ bbox: BoundingBox }>`
     position: absolute;
     left: ${(props) => props.bbox.l}px;
@@ -117,10 +78,9 @@ export const PDFViewer = ({
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
     const viewerContainerRef = useRef<HTMLDivElement | null>(null);
+    const { currentPage, setTotalPages } = usePagination();
 
     const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(0);
     const [mousePosition, setMousePosition] = useState<{
         x: number;
         y: number;
@@ -130,18 +90,6 @@ export const PDFViewer = ({
     );
     const [currentHighlight, setCurrentHighlight] =
         useState<BoundingBox | null>(null);
-
-    const handlePrevPage = () => {
-        if (currentPage > 1) {
-            setCurrentPage(currentPage - 1);
-        }
-    };
-
-    const handleNextPage = () => {
-        if (currentPage < totalPages) {
-            setCurrentPage(currentPage + 1);
-        }
-    };
 
     const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
         if (!canvasRef.current) return;
@@ -177,7 +125,7 @@ export const PDFViewer = ({
         };
 
         loadPDF();
-    }, [url]);
+    }, [url, setTotalPages]);
 
     useEffect(() => {
         const renderPage = async () => {
@@ -353,23 +301,7 @@ export const PDFViewer = ({
                     <HighlightOverlay bbox={currentHighlight} />
                 )}
             </CanvasContainer>
-            <PageControls>
-                <PageButton
-                    onClick={handlePrevPage}
-                    disabled={currentPage <= 1}
-                >
-                    이전
-                </PageButton>
-                <PageInfo>
-                    {currentPage} / {totalPages}
-                </PageInfo>
-                <PageButton
-                    onClick={handleNextPage}
-                    disabled={currentPage >= totalPages}
-                >
-                    다음
-                </PageButton>
-            </PageControls>
+            <Pagination />
         </ViewerContainer>
     );
 };

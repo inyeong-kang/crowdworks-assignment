@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { JSONViewer, PDFViewer, Preview, Tab } from '@/components';
+import { PaginationProvider } from '@/contexts';
 import { GlobalStyle } from '@/styles';
 import { DoclingDocument } from '@/types';
 
@@ -79,38 +80,40 @@ function App() {
     return (
         <>
             <GlobalStyle />
-            <AppContainer>
-                <PDFContainer>
-                    <PDFViewer
-                        url="/1.report.pdf"
-                        jsonData={jsonData}
-                        onHighlightChange={setHighlightedRef}
-                        pageWidth={jsonData?.pages?.['1']?.size?.width}
-                        pageHeight={jsonData?.pages?.['1']?.size?.height}
-                        highlightedRef={highlightedRef}
-                    />
-                </PDFContainer>
-                <ContentContainer>
-                    <Tab
-                        items={tabItems}
-                        activeTab={activeTab}
-                        onTabChange={(tabId) =>
-                            setActiveTab(tabId as 'preview' | 'json')
-                        }
-                    />
-                    <ContentWrapper>
-                        {activeTab === 'preview' ? (
-                            <Preview
-                                data={jsonData}
-                                highlightedRef={highlightedRef}
-                                onHighlightChange={setHighlightedRef}
-                            />
-                        ) : (
-                            <JSONViewer data={jsonData} />
-                        )}
-                    </ContentWrapper>
-                </ContentContainer>
-            </AppContainer>
+            <PaginationProvider>
+                <AppContainer>
+                    <PDFContainer>
+                        <PDFViewer
+                            url="/1.report.pdf"
+                            jsonData={jsonData}
+                            onHighlightChange={setHighlightedRef}
+                            pageWidth={jsonData?.pages?.['1']?.size?.width}
+                            pageHeight={jsonData?.pages?.['1']?.size?.height}
+                            highlightedRef={highlightedRef}
+                        />
+                    </PDFContainer>
+                    <ContentContainer>
+                        <Tab
+                            items={tabItems}
+                            activeTab={activeTab}
+                            onTabChange={(tabId) =>
+                                setActiveTab(tabId as 'preview' | 'json')
+                            }
+                        />
+                        <ContentWrapper>
+                            {activeTab === 'preview' ? (
+                                <Preview
+                                    data={jsonData}
+                                    highlightedRef={highlightedRef}
+                                    onHighlightChange={setHighlightedRef}
+                                />
+                            ) : (
+                                <JSONViewer data={jsonData} />
+                            )}
+                        </ContentWrapper>
+                    </ContentContainer>
+                </AppContainer>
+            </PaginationProvider>
         </>
     );
 }
