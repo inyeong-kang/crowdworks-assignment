@@ -4,6 +4,7 @@ import { JSONViewer, PDFViewer, Preview, Tab } from '@/components';
 import { PaginationProvider } from '@/contexts';
 import { GlobalStyle } from '@/styles';
 import { DoclingDocument } from '@/types';
+import { loadJSON } from '@/utils';
 
 const AppContainer = styled.div`
     display: flex;
@@ -50,23 +51,15 @@ function App() {
     ];
 
     useEffect(() => {
-        const loadJSON = async () => {
-            try {
-                const response = await fetch('/1.report.json');
-                if (!response.ok) {
-                    throw new Error('Failed to load JSON');
-                }
-                const data = await response.json();
+        loadJSON({
+            url: '/1.report.json',
+            successCallback: (data: DoclingDocument) => {
                 setJsonData(data);
-            } catch (err) {
-                setError(
-                    err instanceof Error ? err.message : 'Failed to load JSON',
-                );
-                console.error('Error loading JSON:', err);
-            }
-        };
-
-        loadJSON();
+            },
+            errorCallback: (error: Error) => {
+                setError(error.message);
+            },
+        });
     }, []);
 
     if (error) {

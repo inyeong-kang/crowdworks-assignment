@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { Pagination } from '@/components';
 import { usePagination } from '@/contexts';
 import { BoundingBox, DoclingDocument } from '@/types';
+import { loadPDF } from '@/utils';
 
 // PDF.js 워커 설정
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -113,18 +114,16 @@ export const PDFViewer = ({
     };
 
     useEffect(() => {
-        const loadPDF = async () => {
-            try {
-                const loadingTask = pdfjsLib.getDocument(url);
-                const pdfDoc = await loadingTask.promise;
+        loadPDF({
+            url,
+            successCallback: (pdfDoc: pdfjsLib.PDFDocumentProxy) => {
                 setPdf(pdfDoc);
                 setTotalPages(pdfDoc.numPages);
-            } catch (error) {
+            },
+            errorCallback: (error: Error) => {
                 console.error('Error loading PDF:', error);
-            }
-        };
-
-        loadPDF();
+            },
+        });
     }, [url, setTotalPages]);
 
     useEffect(() => {
