@@ -20,6 +20,7 @@ interface PDFViewerProps {
     onHighlightChange: (ref: string | null) => void;
     pageWidth?: number;
     pageHeight?: number;
+    highlightedRef: string | null;
 }
 
 interface BoundingBoxWithType extends BoundingBox {
@@ -111,9 +112,11 @@ export const PDFViewer = ({
     onHighlightChange,
     pageWidth = DEFAULT_PAGE_WIDTH,
     pageHeight = DEFAULT_PAGE_HEIGHT,
+    highlightedRef,
 }: PDFViewerProps) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+    const viewerContainerRef = useRef<HTMLDivElement | null>(null);
 
     const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -275,6 +278,38 @@ export const PDFViewer = ({
         extractBoundingBoxes();
     }, [jsonData]);
 
+    // Preview에서 클릭된 요소와 매칭되는 영역 하이라이트
+    useEffect(() => {
+        if (highlightedRef && boundingBoxes.length > 0) {
+            const box = boundingBoxes.find((b) => b.ref === highlightedRef);
+            if (box) {
+                setCurrentHighlight({
+                    l: box.l,
+                    t: box.t,
+                    r: box.r,
+                    b: box.b,
+                    coord_origin: box.coord_origin,
+                });
+
+                // Preview에서 클릭했을 때만 스크롤 동작
+                if (viewerContainerRef.current && !mousePosition) {
+                    const container = viewerContainerRef.current;
+                    const highlightTop = pageHeight - box.t;
+                    const containerHeight = container.clientHeight;
+                    const scrollTop = highlightTop - containerHeight / 2;
+
+                    container.scrollTo({
+                        top: scrollTop,
+                        behavior: 'smooth',
+                    });
+                }
+            }
+        } else {
+            setCurrentHighlight(null);
+        }
+    }, [highlightedRef, boundingBoxes, pageHeight, mousePosition]);
+
+    // 마우스 이벤트로 인한 하이라이트 처리
     useEffect(() => {
         if (mousePosition && boundingBoxes.length > 0) {
             const currentBox = boundingBoxes.find((box) => {
@@ -299,14 +334,11 @@ export const PDFViewer = ({
                 setCurrentHighlight(null);
                 onHighlightChange(null);
             }
-        } else {
-            setCurrentHighlight(null);
-            onHighlightChange(null);
         }
     }, [mousePosition, boundingBoxes, onHighlightChange]);
 
     return (
-        <ViewerContainer>
+        <ViewerContainer ref={viewerContainerRef}>
             <CanvasContainer>
                 <Canvas
                     ref={canvasRef}

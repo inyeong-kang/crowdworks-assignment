@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { RefObject, useEffect, useRef } from 'react';
 import styled, { css } from 'styled-components';
 import { DoclingDocument, DoclingNode } from '@/types';
 
@@ -20,27 +20,36 @@ const NodeInfo = styled.div`
     color: #495057;
 `;
 
-const StyledList = styled.ul`
-    margin: 0;
-    padding-left: 20px;
-`;
-
 interface StyledProps {
     $highlighted?: boolean;
 }
+
+const clickableStyle = css`
+    cursor: pointer;
+`;
+
+const highlightStyle = css<StyledProps>`
+    ${(props) =>
+        props.$highlighted &&
+        css`
+            background-color: rgba(255, 255, 0, 0.2);
+        `}
+`;
+
+const StyledList = styled.ul<StyledProps>`
+    margin: 0;
+    padding-left: 20px;
+    ${clickableStyle}
+    ${highlightStyle}
+`;
 
 const StyledListItem = styled.li<StyledProps>`
     margin: 4px 0;
     list-style-type: none;
     padding: 4px;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
-
-    ${(props) =>
-        props.$highlighted &&
-        css`
-            background-color: rgba(255, 255, 0, 0.2);
-        `}
+    ${clickableStyle}
+    ${highlightStyle}
 `;
 
 const StyledHeader = styled.h2<StyledProps>`
@@ -49,13 +58,8 @@ const StyledHeader = styled.h2<StyledProps>`
     font-weight: bold;
     padding: 4px;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
-
-    ${(props) =>
-        props.$highlighted &&
-        css`
-            background-color: rgba(255, 255, 0, 0.2);
-        `}
+    ${clickableStyle}
+    ${highlightStyle}
 `;
 
 const StyledSectionHeader = styled.h6<StyledProps>`
@@ -65,25 +69,15 @@ const StyledSectionHeader = styled.h6<StyledProps>`
     font-weight: bold;
     padding: 4px;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
-
-    ${(props) =>
-        props.$highlighted &&
-        css`
-            background-color: rgba(255, 255, 0, 0.2);
-        `}
+    ${clickableStyle}
+    ${highlightStyle}
 `;
 
 const StyledDefaultText = styled.div<StyledProps>`
     padding: 4px;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
-
-    ${(props) =>
-        props.$highlighted &&
-        css`
-            background-color: rgba(255, 255, 0, 0.2);
-        `}
+    ${clickableStyle}
+    ${highlightStyle}
 `;
 
 const GroupContainer = styled.div`
@@ -96,13 +90,8 @@ const ImageContainer = styled.div<StyledProps>`
     display: inline-block;
     padding: 4px;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
-
-    ${(props) =>
-        props.$highlighted &&
-        css`
-            background-color: rgba(255, 255, 0, 0.2);
-        `}
+    ${clickableStyle}
+    ${highlightStyle}
 `;
 
 const ImagePreview = styled.img`
@@ -118,6 +107,8 @@ const TablePreview = styled.table<StyledProps>`
     border-collapse: collapse;
     margin-top: 8px;
     font-size: 12px;
+    ${clickableStyle}
+    ${highlightStyle}
 
     th,
     td {
@@ -130,30 +121,24 @@ const TablePreview = styled.table<StyledProps>`
         background-color: #f8f9fa;
         font-weight: bold;
     }
-
-    ${(props) =>
-        props.$highlighted &&
-        css`
-            background-color: rgba(255, 255, 0, 0.2);
-        `}
 `;
 
 interface PreviewProps {
     data: DoclingDocument;
     highlightedRef: string | null;
+    onHighlightChange: (ref: string | null) => void;
 }
 
-export const Preview = ({ data, highlightedRef }: PreviewProps) => {
-    const highlightedElementRef = useRef<HTMLDivElement>(null);
+export const Preview = ({
+    data,
+    highlightedRef,
+    onHighlightChange,
+}: PreviewProps) => {
+    const highlightedElementRef = useRef<HTMLElement>(null);
 
-    useEffect(() => {
-        if (highlightedRef && highlightedElementRef.current) {
-            highlightedElementRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
-            });
-        }
-    }, [highlightedRef]);
+    const handleClick = (ref: string) => {
+        onHighlightChange(ref === highlightedRef ? null : ref);
+    };
 
     const renderNode = (node: DoclingNode) => {
         const textItem = data.texts.find((text) => text.self_ref === node.$ref);
@@ -172,28 +157,72 @@ export const Preview = ({ data, highlightedRef }: PreviewProps) => {
 
             switch (textItem.label) {
                 case 'list':
-                    return <StyledList>{content}</StyledList>;
+                    return (
+                        <StyledList
+                            ref={
+                                isHighlighted
+                                    ? (highlightedElementRef as RefObject<HTMLUListElement>)
+                                    : null
+                            }
+                            $highlighted={isHighlighted}
+                            onClick={() => handleClick(textItem.self_ref)}
+                        >
+                            {content}
+                        </StyledList>
+                    );
                 case 'list_item':
                     return (
-                        <StyledListItem $highlighted={isHighlighted}>
+                        <StyledListItem
+                            ref={
+                                isHighlighted
+                                    ? (highlightedElementRef as RefObject<HTMLLIElement>)
+                                    : null
+                            }
+                            $highlighted={isHighlighted}
+                            onClick={() => handleClick(textItem.self_ref)}
+                        >
                             {content}
                         </StyledListItem>
                     );
                 case 'page_header':
                     return (
-                        <StyledHeader $highlighted={isHighlighted}>
+                        <StyledHeader
+                            ref={
+                                isHighlighted
+                                    ? (highlightedElementRef as RefObject<HTMLHeadingElement>)
+                                    : null
+                            }
+                            $highlighted={isHighlighted}
+                            onClick={() => handleClick(textItem.self_ref)}
+                        >
                             {content}
                         </StyledHeader>
                     );
                 case 'section_header':
                     return (
-                        <StyledSectionHeader $highlighted={isHighlighted}>
+                        <StyledSectionHeader
+                            ref={
+                                isHighlighted
+                                    ? (highlightedElementRef as RefObject<HTMLHeadingElement>)
+                                    : null
+                            }
+                            $highlighted={isHighlighted}
+                            onClick={() => handleClick(textItem.self_ref)}
+                        >
                             {content}
                         </StyledSectionHeader>
                     );
                 default:
                     return (
-                        <StyledDefaultText $highlighted={isHighlighted}>
+                        <StyledDefaultText
+                            ref={
+                                isHighlighted
+                                    ? (highlightedElementRef as RefObject<HTMLDivElement>)
+                                    : null
+                            }
+                            $highlighted={isHighlighted}
+                            onClick={() => handleClick(textItem.self_ref)}
+                        >
                             {content}
                         </StyledDefaultText>
                     );
@@ -210,7 +239,15 @@ export const Preview = ({ data, highlightedRef }: PreviewProps) => {
             ).fill(0);
 
             return (
-                <TablePreview $highlighted={isHighlighted}>
+                <TablePreview
+                    ref={
+                        isHighlighted
+                            ? (highlightedElementRef as RefObject<HTMLTableElement>)
+                            : null
+                    }
+                    $highlighted={isHighlighted}
+                    onClick={() => handleClick(table.self_ref)}
+                >
                     <tbody>
                         {table.data.grid.map((row, rowIndex) => {
                             let currentColIndex = 0;
@@ -270,14 +307,19 @@ export const Preview = ({ data, highlightedRef }: PreviewProps) => {
         })();
 
         return (
-            <div
-                key={node.$ref || node.self_ref}
-                ref={isHighlighted ? highlightedElementRef : null}
-            >
+            <div key={node.$ref || node.self_ref}>
                 <NodeInfo>
                     {renderText}
                     {picture && (
-                        <ImageContainer $highlighted={isHighlighted}>
+                        <ImageContainer
+                            ref={
+                                isHighlighted
+                                    ? (highlightedElementRef as RefObject<HTMLDivElement>)
+                                    : null
+                            }
+                            $highlighted={isHighlighted}
+                            onClick={() => handleClick(picture.self_ref)}
+                        >
                             <ImagePreview
                                 width={picture.image.size.width}
                                 height={picture.image.size.height}
@@ -305,6 +347,15 @@ export const Preview = ({ data, highlightedRef }: PreviewProps) => {
             </section>
         );
     })();
+
+    useEffect(() => {
+        if (highlightedRef && highlightedElementRef.current) {
+            highlightedElementRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+        }
+    }, [highlightedRef]);
 
     return <PreviewContainer>{renderBody}</PreviewContainer>;
 };

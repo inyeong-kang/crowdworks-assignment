@@ -87,6 +87,7 @@ function App() {
                         onHighlightChange={setHighlightedRef}
                         pageWidth={jsonData?.pages?.['1']?.size?.width}
                         pageHeight={jsonData?.pages?.['1']?.size?.height}
+                        highlightedRef={highlightedRef}
                     />
                 </PDFContainer>
                 <ContentContainer>
@@ -102,6 +103,7 @@ function App() {
                             <Preview
                                 data={jsonData}
                                 highlightedRef={highlightedRef}
+                                onHighlightChange={setHighlightedRef}
                             />
                         ) : (
                             <JSONViewer data={jsonData} />
