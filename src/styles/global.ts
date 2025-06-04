@@ -19,4 +19,20 @@ export const GlobalStyle = createGlobalStyle`
     font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
       monospace;
   }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  h6 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  li {
+    list-style: none;
+  }
 `;
