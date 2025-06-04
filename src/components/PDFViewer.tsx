@@ -42,24 +42,24 @@ const ViewerContainer = styled.div`
     flex-direction: column;
 `;
 
-const CanvasContainer = styled.div`
+const CanvasContainer = styled.div<{ width: number; height: number }>`
     position: relative;
-    width: ${DEFAULT_PAGE_WIDTH}px;
-    height: ${DEFAULT_PAGE_HEIGHT}px;
+    width: ${(props) => props.width}px;
+    height: ${(props) => props.height}px;
     flex: 1;
 `;
 
-const Canvas = styled.canvas`
+const Canvas = styled.canvas<{ width: number; height: number }>`
     display: block;
-    width: ${DEFAULT_PAGE_WIDTH}px;
-    height: ${DEFAULT_PAGE_HEIGHT}px;
+    width: ${(props) => props.width}px;
+    height: ${(props) => props.height}px;
     flex: 1;
 `;
 
-const HighlightOverlay = styled.div<{ bbox: BoundingBox }>`
+const HighlightOverlay = styled.div<{ bbox: BoundingBox; pageHeight: number }>`
     position: absolute;
     left: ${(props) => props.bbox.l}px;
-    top: ${(props) => DEFAULT_PAGE_HEIGHT - props.bbox.t}px;
+    top: ${(props) => props.pageHeight - props.bbox.t}px;
     width: ${(props) => props.bbox.r - props.bbox.l}px;
     height: ${(props) => props.bbox.t - props.bbox.b}px;
     background-color: rgba(0, 123, 255, 0.1);
@@ -189,33 +189,39 @@ export const PDFViewer = ({
             // texts에서 bbox 추출
             jsonData.texts.forEach((text) => {
                 text.prov?.forEach((p) => {
-                    boxes.push({
-                        ...p.bbox,
-                        type: 'text',
-                        ref: text.self_ref,
-                    });
+                    if (p.page_no === currentPage) {
+                        boxes.push({
+                            ...p.bbox,
+                            type: 'text',
+                            ref: text.self_ref,
+                        });
+                    }
                 });
             });
 
             // pictures에서 bbox 추출
             jsonData.pictures.forEach((picture) => {
                 picture.prov?.forEach((p) => {
-                    boxes.push({
-                        ...p.bbox,
-                        type: 'picture',
-                        ref: picture.self_ref,
-                    });
+                    if (p.page_no === currentPage) {
+                        boxes.push({
+                            ...p.bbox,
+                            type: 'picture',
+                            ref: picture.self_ref,
+                        });
+                    }
                 });
             });
 
             // tables에서 bbox 추출
             jsonData.tables.forEach((table) => {
                 table.prov?.forEach((p) => {
-                    boxes.push({
-                        ...p.bbox,
-                        type: 'table',
-                        ref: table.self_ref,
-                    });
+                    if (p.page_no === currentPage) {
+                        boxes.push({
+                            ...p.bbox,
+                            type: 'table',
+                            ref: table.self_ref,
+                        });
+                    }
                 });
             });
 
@@ -223,7 +229,7 @@ export const PDFViewer = ({
         };
 
         extractBoundingBoxes();
-    }, [jsonData]);
+    }, [jsonData, currentPage]);
 
     // Preview에서 클릭된 요소와 매칭되는 영역 하이라이트
     useEffect(() => {
@@ -256,6 +262,12 @@ export const PDFViewer = ({
         }
     }, [highlightedRef, boundingBoxes, pageHeight, mousePosition]);
 
+    // 페이지가 변경될 때 하이라이트 초기화
+    useEffect(() => {
+        setCurrentHighlight(null);
+        onHighlightChange(null);
+    }, [currentPage, onHighlightChange]);
+
     // 마우스 이벤트로 인한 하이라이트 처리
     useEffect(() => {
         if (mousePosition && boundingBoxes.length > 0) {
@@ -286,18 +298,19 @@ export const PDFViewer = ({
 
     return (
         <ViewerContainer ref={viewerContainerRef}>
-            <CanvasContainer>
+            <CanvasContainer width={pageWidth} height={pageHeight}>
                 <Canvas
                     ref={canvasRef}
+                    width={pageWidth}
+                    height={pageHeight}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
-                    style={{
-                        width: `${pageWidth}px`,
-                        height: `${pageHeight}px`,
-                    }}
                 />
                 {currentHighlight && (
-                    <HighlightOverlay bbox={currentHighlight} />
+                    <HighlightOverlay
+                        bbox={currentHighlight}
+                        pageHeight={pageHeight}
+                    />
                 )}
             </CanvasContainer>
             <Pagination />

@@ -1,5 +1,6 @@
 import { RefObject, useEffect, useRef } from 'react';
 import styled, { css } from 'styled-components';
+import { usePagination } from '@/contexts';
 import { DoclingDocument, DoclingNode } from '@/types';
 
 const PreviewContainer = styled.div`
@@ -135,12 +136,42 @@ export const Preview = ({
     onHighlightChange,
 }: PreviewProps) => {
     const highlightedElementRef = useRef<HTMLElement>(null);
+    const { currentPage } = usePagination();
 
     const handleClick = (ref: string) => {
         onHighlightChange(ref === highlightedRef ? null : ref);
     };
 
+    const isNodeInCurrentPage = (node: DoclingNode): boolean => {
+        const textItem = data.texts.find((text) => text.self_ref === node.$ref);
+        const picture = data.pictures.find((pic) => pic.self_ref === node.$ref);
+        const table = data.tables.find((tbl) => tbl.self_ref === node.$ref);
+
+        if (textItem?.prov) {
+            return textItem.prov.some((p) => p.page_no === currentPage);
+        }
+        if (picture?.prov) {
+            return picture.prov.some((p) => p.page_no === currentPage);
+        }
+        if (table?.prov) {
+            return table.prov.some((p) => p.page_no === currentPage);
+        }
+
+        // 그룹의 경우 자식 노드들 중 하나라도 현재 페이지에 있으면 표시
+        const group = data.groups.find((group) => group.self_ref === node.$ref);
+        if (group?.children) {
+            return group.children.some((child) => isNodeInCurrentPage(child));
+        }
+
+        return false;
+    };
+
     const renderNode = (node: DoclingNode) => {
+        // 현재 페이지에 없는 노드는 렌더링하지 않음
+        if (!isNodeInCurrentPage(node)) {
+            return null;
+        }
+
         const textItem = data.texts.find((text) => text.self_ref === node.$ref);
         const group = data.groups.find((group) => group.self_ref === node.$ref);
         const picture = data.pictures.find((pic) => pic.self_ref === node.$ref);
