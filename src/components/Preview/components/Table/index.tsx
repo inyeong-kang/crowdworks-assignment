@@ -1,0 +1,89 @@
+import { RefObject } from 'react';
+import { TableItem } from '@/types';
+import { BaseProps } from '../../type';
+import { ChildrenRenderer } from '../ChildrenRenderer';
+import { TablePreview } from './style';
+
+interface TableProps extends BaseProps {
+    table: TableItem;
+}
+
+export const Table = ({
+    table,
+    data: jsonData,
+    isHighlighted,
+    highlightedRef,
+    highlightedElementRef,
+    onHighlightChange,
+}: TableProps) => {
+    const { data, children, self_ref } = table;
+    const { grid, num_cols } = data;
+
+    const rowSpanTracker: number[] = new Array(num_cols).fill(0);
+
+    return (
+        <>
+            <TablePreview
+                ref={
+                    isHighlighted
+                        ? (highlightedElementRef as RefObject<HTMLTableElement>)
+                        : null
+                }
+                $highlighted={isHighlighted}
+                onClick={() => onHighlightChange(self_ref)}
+            >
+                <tbody>
+                    {grid.map((row, rowIndex) => {
+                        let currentColIndex = 0;
+                        return (
+                            <tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => {
+                                    if (cellIndex < currentColIndex) {
+                                        return null;
+                                    }
+
+                                    if (rowSpanTracker[cellIndex] > 0) {
+                                        rowSpanTracker[cellIndex]--;
+                                        return null;
+                                    }
+
+                                    currentColIndex += cell.col_span;
+
+                                    if (cell.row_span > 1) {
+                                        for (
+                                            let i = 0;
+                                            i < cell.col_span;
+                                            i++
+                                        ) {
+                                            rowSpanTracker[cellIndex + i] =
+                                                cell.row_span - 1;
+                                        }
+                                    }
+
+                                    return (
+                                        <td
+                                            key={cellIndex}
+                                            rowSpan={cell.row_span}
+                                            colSpan={cell.col_span}
+                                        >
+                                            {cell.text}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </TablePreview>
+            {children && (
+                <ChildrenRenderer
+                    children={children}
+                    data={jsonData}
+                    highlightedRef={highlightedRef}
+                    highlightedElementRef={highlightedElementRef}
+                    onHighlightChange={onHighlightChange}
+                />
+            )}
+        </>
+    );
+};
