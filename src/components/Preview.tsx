@@ -141,6 +141,54 @@ interface PreviewProps {
     onHighlightChange: (ref: string | null) => void;
 }
 
+interface ChildrenRendererProps {
+    children: { $ref: string }[];
+    data: DoclingDocument;
+    highlightedRef: string | null;
+    highlightedElementRef: RefObject<HTMLElement | null>;
+    onHighlightChange: (ref: string | null) => void;
+}
+
+const ChildrenRenderer = ({
+    children,
+    data,
+    highlightedRef,
+    highlightedElementRef,
+    onHighlightChange,
+}: ChildrenRendererProps) => {
+    return (
+        <GroupContainer>
+            {children.map((child) => {
+                const childText = data.texts.find(
+                    (text) => text.self_ref === child.$ref,
+                );
+                if (!childText) return null;
+
+                const isChildHighlighted =
+                    childText.self_ref === highlightedRef;
+                const content = childText.text || childText.orig;
+                const isCaption = childText.label === 'caption';
+
+                return (
+                    <StyledDefaultText
+                        key={childText.self_ref}
+                        ref={
+                            isChildHighlighted
+                                ? (highlightedElementRef as RefObject<HTMLDivElement>)
+                                : null
+                        }
+                        $highlighted={isChildHighlighted}
+                        $isCaption={isCaption}
+                        onClick={() => onHighlightChange(childText.self_ref)}
+                    >
+                        {content}
+                    </StyledDefaultText>
+                );
+            })}
+        </GroupContainer>
+    );
+};
+
 export const Preview = ({
     data,
     highlightedRef,
@@ -281,58 +329,70 @@ export const Preview = ({
             ).fill(0);
 
             return (
-                <TablePreview
-                    ref={
-                        isHighlighted
-                            ? (highlightedElementRef as RefObject<HTMLTableElement>)
-                            : null
-                    }
-                    $highlighted={isHighlighted}
-                    onClick={() => handleClick(table.self_ref)}
-                >
-                    <tbody>
-                        {table.data.grid.map((row, rowIndex) => {
-                            let currentColIndex = 0;
-                            return (
-                                <tr key={rowIndex}>
-                                    {row.map((cell, cellIndex) => {
-                                        if (cellIndex < currentColIndex) {
-                                            return null;
-                                        }
-
-                                        if (rowSpanTracker[cellIndex] > 0) {
-                                            rowSpanTracker[cellIndex]--;
-                                            return null;
-                                        }
-
-                                        currentColIndex += cell.col_span;
-
-                                        if (cell.row_span > 1) {
-                                            for (
-                                                let i = 0;
-                                                i < cell.col_span;
-                                                i++
-                                            ) {
-                                                rowSpanTracker[cellIndex + i] =
-                                                    cell.row_span - 1;
+                <>
+                    <TablePreview
+                        ref={
+                            isHighlighted
+                                ? (highlightedElementRef as RefObject<HTMLTableElement>)
+                                : null
+                        }
+                        $highlighted={isHighlighted}
+                        onClick={() => handleClick(table.self_ref)}
+                    >
+                        <tbody>
+                            {table.data.grid.map((row, rowIndex) => {
+                                let currentColIndex = 0;
+                                return (
+                                    <tr key={rowIndex}>
+                                        {row.map((cell, cellIndex) => {
+                                            if (cellIndex < currentColIndex) {
+                                                return null;
                                             }
-                                        }
 
-                                        return (
-                                            <td
-                                                key={cellIndex}
-                                                rowSpan={cell.row_span}
-                                                colSpan={cell.col_span}
-                                            >
-                                                {cell.text}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </TablePreview>
+                                            if (rowSpanTracker[cellIndex] > 0) {
+                                                rowSpanTracker[cellIndex]--;
+                                                return null;
+                                            }
+
+                                            currentColIndex += cell.col_span;
+
+                                            if (cell.row_span > 1) {
+                                                for (
+                                                    let i = 0;
+                                                    i < cell.col_span;
+                                                    i++
+                                                ) {
+                                                    rowSpanTracker[
+                                                        cellIndex + i
+                                                    ] = cell.row_span - 1;
+                                                }
+                                            }
+
+                                            return (
+                                                <td
+                                                    key={cellIndex}
+                                                    rowSpan={cell.row_span}
+                                                    colSpan={cell.col_span}
+                                                >
+                                                    {cell.text}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </TablePreview>
+                    {table.children && (
+                        <ChildrenRenderer
+                            children={table.children}
+                            data={data}
+                            highlightedRef={highlightedRef}
+                            highlightedElementRef={highlightedElementRef}
+                            onHighlightChange={onHighlightChange}
+                        />
+                    )}
+                </>
             );
         })();
 
@@ -371,45 +431,15 @@ export const Preview = ({
                                 />
                             </ImageContainer>
                             {picture.children && (
-                                <GroupContainer>
-                                    {picture.children.map((child) => {
-                                        const childText = data.texts.find(
-                                            (text) =>
-                                                text.self_ref === child.$ref,
-                                        );
-                                        if (!childText) return null;
-
-                                        const isChildHighlighted =
-                                            childText.self_ref ===
-                                            highlightedRef;
-                                        const content =
-                                            childText.text || childText.orig;
-                                        const isCaption =
-                                            childText.label === 'caption';
-
-                                        return (
-                                            <StyledDefaultText
-                                                key={childText.self_ref}
-                                                ref={
-                                                    isChildHighlighted
-                                                        ? (highlightedElementRef as RefObject<HTMLDivElement>)
-                                                        : null
-                                                }
-                                                $highlighted={
-                                                    isChildHighlighted
-                                                }
-                                                $isCaption={isCaption}
-                                                onClick={() =>
-                                                    handleClick(
-                                                        childText.self_ref,
-                                                    )
-                                                }
-                                            >
-                                                {content}
-                                            </StyledDefaultText>
-                                        );
-                                    })}
-                                </GroupContainer>
+                                <ChildrenRenderer
+                                    children={picture.children}
+                                    data={data}
+                                    highlightedRef={highlightedRef}
+                                    highlightedElementRef={
+                                        highlightedElementRef
+                                    }
+                                    onHighlightChange={onHighlightChange}
+                                />
                             )}
                         </>
                     )}
