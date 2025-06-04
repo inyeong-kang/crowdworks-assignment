@@ -23,6 +23,7 @@ const NodeInfo = styled.div`
 
 interface StyledProps {
     $highlighted?: boolean;
+    $isCaption?: boolean;
 }
 
 const clickableStyle = css`
@@ -79,6 +80,16 @@ const StyledDefaultText = styled.div<StyledProps>`
     border-radius: 4px;
     ${clickableStyle}
     ${highlightStyle}
+    ${(props) =>
+        props.$isCaption &&
+        css`
+            font-style: italic;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin: 8px 0;
+            padding: 8px;
+        `}
 `;
 
 const GroupContainer = styled.div`
@@ -342,22 +353,65 @@ export const Preview = ({
                 <NodeInfo>
                     {renderText}
                     {picture && (
-                        <ImageContainer
-                            ref={
-                                isHighlighted
-                                    ? (highlightedElementRef as RefObject<HTMLDivElement>)
-                                    : null
-                            }
-                            $highlighted={isHighlighted}
-                            onClick={() => handleClick(picture.self_ref)}
-                        >
-                            <ImagePreview
-                                width={picture.image.size.width}
-                                height={picture.image.size.height}
-                                src={picture.image.uri}
-                                alt={picture.label}
-                            />
-                        </ImageContainer>
+                        <>
+                            <ImageContainer
+                                ref={
+                                    isHighlighted
+                                        ? (highlightedElementRef as RefObject<HTMLDivElement>)
+                                        : null
+                                }
+                                $highlighted={isHighlighted}
+                                onClick={() => handleClick(picture.self_ref)}
+                            >
+                                <ImagePreview
+                                    width={picture.image.size.width}
+                                    height={picture.image.size.height}
+                                    src={picture.image.uri}
+                                    alt={picture.label}
+                                />
+                            </ImageContainer>
+                            {picture.children && (
+                                <GroupContainer>
+                                    {picture.children.map((child) => {
+                                        const childText = data.texts.find(
+                                            (text) =>
+                                                text.self_ref === child.$ref,
+                                        );
+                                        if (!childText) return null;
+
+                                        const isChildHighlighted =
+                                            childText.self_ref ===
+                                            highlightedRef;
+                                        const content =
+                                            childText.text || childText.orig;
+                                        const isCaption =
+                                            childText.label === 'caption';
+
+                                        return (
+                                            <StyledDefaultText
+                                                key={childText.self_ref}
+                                                ref={
+                                                    isChildHighlighted
+                                                        ? (highlightedElementRef as RefObject<HTMLDivElement>)
+                                                        : null
+                                                }
+                                                $highlighted={
+                                                    isChildHighlighted
+                                                }
+                                                $isCaption={isCaption}
+                                                onClick={() =>
+                                                    handleClick(
+                                                        childText.self_ref,
+                                                    )
+                                                }
+                                            >
+                                                {content}
+                                            </StyledDefaultText>
+                                        );
+                                    })}
+                                </GroupContainer>
+                            )}
+                        </>
                     )}
                     {renderTable}
                     {renderGroup}
