@@ -1,4 +1,4 @@
-import { RefObject } from 'react';
+import { RefObject, useCallback } from 'react';
 import { PictureItem } from '@/types';
 import { BaseProps } from '../../type';
 import { NodeRenderer } from '../NodeRenderer';
@@ -18,6 +18,10 @@ export const Picture = ({
     const { children, image, label, self_ref } = picture;
     const { size, uri } = image;
 
+    const handleClick = useCallback(() => {
+        onHighlightChange(self_ref);
+    }, [onHighlightChange, self_ref]);
+
     return (
         <>
             <ImageContainer
@@ -27,7 +31,7 @@ export const Picture = ({
                         : null
                 }
                 $highlighted={isHighlighted}
-                onClick={() => onHighlightChange(self_ref)}
+                onClick={handleClick}
             >
                 <ImagePreview
                     width={size.width}

@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useRef } from 'react';
+import { RefObject, useCallback, useEffect, useRef } from 'react';
 import { useHighlight } from '@/contexts/highlight';
 import { DoclingDocument } from '@/types';
 import { NodeRenderer } from './components';
@@ -33,7 +33,7 @@ export const Preview = ({ data }: PreviewProps) => {
         );
     })();
 
-    useEffect(() => {
+    const handleScroll = useCallback(() => {
         if (highlightedRef && highlightedElementRef.current) {
             highlightedElementRef.current.scrollIntoView({
                 behavior: 'smooth',
@@ -41,6 +41,10 @@ export const Preview = ({ data }: PreviewProps) => {
             });
         }
     }, [highlightedRef]);
+
+    useEffect(() => {
+        handleScroll();
+    }, [handleScroll]);
 
     return <S.PreviewContainer>{renderBody}</S.PreviewContainer>;
 };

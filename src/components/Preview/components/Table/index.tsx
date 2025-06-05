@@ -1,4 +1,4 @@
-import { RefObject } from 'react';
+import { RefObject, useCallback } from 'react';
 import { TableItem } from '@/types';
 import { BaseProps } from '../../type';
 import { NodeRenderer } from '../NodeRenderer';
@@ -20,6 +20,10 @@ export const Table = ({
 
     const rowSpanTracker: number[] = new Array(num_cols).fill(0);
 
+    const handleClick = useCallback(() => {
+        onHighlightChange(self_ref);
+    }, [onHighlightChange, self_ref]);
+
     return (
         <>
             <TablePreview
@@ -29,7 +33,7 @@ export const Table = ({
                         : null
                 }
                 $highlighted={isHighlighted}
-                onClick={() => onHighlightChange(self_ref)}
+                onClick={handleClick}
             >
                 <tbody>
                     {grid.map((row, rowIndex) => {

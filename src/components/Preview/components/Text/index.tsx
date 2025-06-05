@@ -1,4 +1,4 @@
-import { RefObject } from 'react';
+import { RefObject, useCallback } from 'react';
 import { TextItem } from '@/types';
 import { S } from '../../style';
 import { BaseProps } from '../../type';
@@ -27,6 +27,10 @@ export const Text = ({
     const label = textItem.label as TagMapKey;
     const as = TAG_MAP[label] || TAG_MAP.default;
 
+    const handleClick = useCallback(() => {
+        onHighlightChange(textItem.self_ref);
+    }, [onHighlightChange, textItem.self_ref]);
+
     return (
         <S.DefaultText
             as={as}
@@ -36,7 +40,7 @@ export const Text = ({
                     : null
             }
             $highlighted={isHighlighted}
-            onClick={() => onHighlightChange(textItem.self_ref)}
+            onClick={handleClick}
         >
             {content}
         </S.DefaultText>
