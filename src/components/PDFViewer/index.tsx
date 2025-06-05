@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import styled from 'styled-components';
 import { Pagination } from '@/components';
-import { usePagination } from '@/contexts';
-import { BoundingBox, DoclingDocument } from '@/types';
+import { useHighlight, usePagination } from '@/contexts';
+import { BoundingBoxWithType, DoclingDocument } from '@/types';
 import { loadPDF } from '@/utils';
+import {
+    Canvas,
+    CanvasContainer,
+    HighlightOverlay,
+    ViewerContainer,
+} from './style';
 
 // PDF.js 워커 설정
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -20,80 +25,38 @@ interface PDFViewerProps {
     url: string;
     onPageLoad?: (page: pdfjsLib.PDFPageProxy) => void;
     jsonData: DoclingDocument;
-    onHighlightChange: (ref: string | null) => void;
     pageWidth?: number;
     pageHeight?: number;
-    highlightedRef: string | null;
 }
-
-interface BoundingBoxWithType extends BoundingBox {
-    type: string;
-    ref: string;
-}
-
-const ViewerContainer = styled.div`
-    width: 100%;
-    min-width: 50%
-    height: 100%;
-    overflow: auto;
-    position: relative;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-`;
-
-const CanvasContainer = styled.div<{ width: number; height: number }>`
-    position: relative;
-    width: ${(props) => props.width}px;
-    height: ${(props) => props.height}px;
-    flex: 1;
-`;
-
-const Canvas = styled.canvas<{ width: number; height: number }>`
-    display: block;
-    width: ${(props) => props.width}px;
-    height: ${(props) => props.height}px;
-    flex: 1;
-`;
-
-const HighlightOverlay = styled.div<{ bbox: BoundingBox; pageHeight: number }>`
-    position: absolute;
-    left: ${(props) => props.bbox.l}px;
-    top: ${(props) => props.pageHeight - props.bbox.t}px;
-    width: ${(props) => props.bbox.r - props.bbox.l}px;
-    height: ${(props) => props.bbox.t - props.bbox.b}px;
-    background-color: rgba(0, 123, 255, 0.1);
-    border: 2px solid rgba(0, 123, 255, 0.5);
-    pointer-events: none;
-`;
 
 export const PDFViewer = ({
     url,
     onPageLoad,
     jsonData,
-    onHighlightChange,
     pageWidth = DEFAULT_PAGE_WIDTH,
     pageHeight = DEFAULT_PAGE_HEIGHT,
-    highlightedRef,
 }: PDFViewerProps) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
     const viewerContainerRef = useRef<HTMLDivElement | null>(null);
-    const { currentPage, setTotalPages } = usePagination();
 
     const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-    const [mousePosition, setMousePosition] = useState<{
-        x: number;
-        y: number;
-    } | null>(null);
-    const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxWithType[]>(
-        [],
-    );
-    const [currentHighlight, setCurrentHighlight] =
-        useState<BoundingBox | null>(null);
+    const { currentPage, setTotalPages } = usePagination();
+    const {
+        mousePosition,
+        setMousePosition,
+        boundingBoxes,
+        setBoundingBoxes,
+        currentHighlight,
+        setCurrentHighlight,
+        highlightedRef,
+        setHighlightedRef,
+    } = useHighlight();
 
     const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current) {
+            return;
+        }
 
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
@@ -102,11 +65,7 @@ export const PDFViewer = ({
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        // PDF 좌표계로 변환 (y축 반전)
-        const pdfX = x;
-        const pdfY = pageHeight - y;
-
-        setMousePosition({ x: pdfX, y: pdfY });
+        setMousePosition({ x, y: pageHeight - y });
     };
 
     const handleMouseLeave = () => {
@@ -229,12 +188,13 @@ export const PDFViewer = ({
         };
 
         extractBoundingBoxes();
-    }, [jsonData, currentPage]);
+    }, [jsonData, currentPage, setBoundingBoxes]);
 
     // Preview에서 클릭된 요소와 매칭되는 영역 하이라이트
     useEffect(() => {
         if (highlightedRef && boundingBoxes.length > 0) {
             const box = boundingBoxes.find((b) => b.ref === highlightedRef);
+
             if (box) {
                 setCurrentHighlight({
                     l: box.l,
@@ -260,13 +220,19 @@ export const PDFViewer = ({
         } else {
             setCurrentHighlight(null);
         }
-    }, [highlightedRef, boundingBoxes, pageHeight, mousePosition]);
+    }, [
+        highlightedRef,
+        boundingBoxes,
+        pageHeight,
+        mousePosition,
+        setCurrentHighlight,
+    ]);
 
     // 페이지가 변경될 때 하이라이트 초기화
     useEffect(() => {
         setCurrentHighlight(null);
-        onHighlightChange(null);
-    }, [currentPage, onHighlightChange]);
+        setHighlightedRef(null);
+    }, [currentPage, setCurrentHighlight, setHighlightedRef]);
 
     // 마우스 이벤트로 인한 하이라이트 처리
     useEffect(() => {
@@ -288,13 +254,13 @@ export const PDFViewer = ({
                     b: currentBox.b,
                     coord_origin: currentBox.coord_origin,
                 });
-                onHighlightChange(currentBox.ref);
+                setHighlightedRef(currentBox.ref);
             } else {
                 setCurrentHighlight(null);
-                onHighlightChange(null);
+                setHighlightedRef(null);
             }
         }
-    }, [mousePosition, boundingBoxes, onHighlightChange]);
+    }, [mousePosition, boundingBoxes, setCurrentHighlight, setHighlightedRef]);
 
     return (
         <ViewerContainer ref={viewerContainerRef}>
