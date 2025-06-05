@@ -1,22 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { usePagination } from '@/contexts';
+import { useHighlight } from '@/contexts/highlight';
 import { DoclingDocument, DoclingNode } from '@/types';
 import { Picture, Table, Text } from './components';
 import { S } from './style';
 
 interface PreviewProps {
     data: DoclingDocument;
-    highlightedRef: string | null;
-    onHighlightChange: (ref: string | null) => void;
 }
 
-export const Preview = ({
-    data,
-    highlightedRef,
-    onHighlightChange,
-}: PreviewProps) => {
+export const Preview = ({ data }: PreviewProps) => {
     const highlightedElementRef = useRef<HTMLElement>(null);
     const { currentPage } = usePagination();
+    const { highlightedRef, setHighlightedRef } = useHighlight();
 
     const isNodeInCurrentPage = (node: DoclingNode): boolean => {
         const textItem = data.texts.find((text) => text.self_ref === node.$ref);
@@ -77,7 +73,7 @@ export const Preview = ({
                             isHighlighted={isHighlighted}
                             highlightedRef={highlightedRef}
                             highlightedElementRef={highlightedElementRef}
-                            onHighlightChange={onHighlightChange}
+                            onHighlightChange={setHighlightedRef}
                         />
                     )}
                     {picture && (
@@ -87,7 +83,7 @@ export const Preview = ({
                             isHighlighted={isHighlighted}
                             highlightedRef={highlightedRef}
                             highlightedElementRef={highlightedElementRef}
-                            onHighlightChange={onHighlightChange}
+                            onHighlightChange={setHighlightedRef}
                         />
                     )}
                     {table && (
@@ -97,7 +93,7 @@ export const Preview = ({
                             isHighlighted={isHighlighted}
                             highlightedRef={highlightedRef}
                             highlightedElementRef={highlightedElementRef}
-                            onHighlightChange={onHighlightChange}
+                            onHighlightChange={setHighlightedRef}
                         />
                     )}
                     {renderGroup}

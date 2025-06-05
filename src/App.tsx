@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import styled from 'styled-components';
 import { JSONViewer, PDFViewer, Preview, Tab } from '@/components';
-import { PaginationProvider, TabProvider, useTab } from '@/contexts';
+import {
+    HighlightProvider,
+    PaginationProvider,
+    TabProvider,
+    useTab,
+} from '@/contexts';
 import { GlobalStyle } from '@/styles';
 import { DoclingDocument } from '@/types';
 import { loadJSON } from '@/utils';
@@ -40,10 +45,9 @@ const ContentWrapper = styled.div`
 `;
 
 const HomePage = () => {
+    const [, startTransition] = useTransition();
     const { activeTab, setActiveTab, tabItems } = useTab();
-
     const [jsonData, setJsonData] = useState<DoclingDocument | null>(null);
-    const [highlightedRef, setHighlightedRef] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -74,27 +78,23 @@ const HomePage = () => {
                     <PDFViewer
                         url="/1.report.pdf"
                         jsonData={jsonData}
-                        onHighlightChange={setHighlightedRef}
                         pageWidth={jsonData?.pages?.['1']?.size?.width}
                         pageHeight={jsonData?.pages?.['1']?.size?.height}
-                        highlightedRef={highlightedRef}
                     />
                 </PDFContainer>
                 <ContentContainer>
                     <Tab
                         items={tabItems}
                         activeTab={activeTab}
-                        onTabChange={(tabId) =>
-                            setActiveTab(tabId as 'preview' | 'json')
-                        }
+                        onTabChange={(tabId) => {
+                            startTransition(() => {
+                                setActiveTab(tabId as 'preview' | 'json');
+                            });
+                        }}
                     />
                     <ContentWrapper>
                         {activeTab === 'preview' ? (
-                            <Preview
-                                data={jsonData}
-                                highlightedRef={highlightedRef}
-                                onHighlightChange={setHighlightedRef}
-                            />
+                            <Preview data={jsonData} />
                         ) : (
                             <JSONViewer data={jsonData} />
                         )}
@@ -109,10 +109,11 @@ const AppWithProviders = () => {
     return (
         <TabProvider>
             <PaginationProvider>
-                <HomePage />
+                <HighlightProvider>
+                    <HomePage />
+                </HighlightProvider>
             </PaginationProvider>
         </TabProvider>
     );
 };
-
 export default AppWithProviders;
