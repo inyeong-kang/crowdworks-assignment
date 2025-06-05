@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Pagination } from '@/components';
 import { useHighlight, usePagination } from '@/contexts';
-import { BoundingBoxWithType, DoclingDocument } from '@/types';
-import { loadPDF } from '@/utils';
+import { usePDFRendering } from '@/hooks';
+import { BoundingBox, BoundingBoxWithType, DoclingDocument } from '@/types';
 import {
     Canvas,
     CanvasContainer,
@@ -36,11 +36,7 @@ export const PDFViewer = ({
     pageWidth = DEFAULT_PAGE_WIDTH,
     pageHeight = DEFAULT_PAGE_HEIGHT,
 }: PDFViewerProps) => {
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
     const viewerContainerRef = useRef<HTMLDivElement | null>(null);
-
-    const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
     const { currentPage, setTotalPages } = usePagination();
     const {
         mousePosition,
@@ -52,6 +48,13 @@ export const PDFViewer = ({
         highlightedRef,
         setHighlightedRef,
     } = useHighlight();
+
+    const { canvasRef } = usePDFRendering({
+        url,
+        currentPage,
+        onPageLoad,
+        onTotalPagesChange: setTotalPages,
+    });
 
     const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
         if (!canvasRef.current) {
@@ -73,71 +76,6 @@ export const PDFViewer = ({
     };
 
     useEffect(() => {
-        loadPDF({
-            url,
-            successCallback: (pdfDoc: pdfjsLib.PDFDocumentProxy) => {
-                setPdf(pdfDoc);
-                setTotalPages(pdfDoc.numPages);
-            },
-            errorCallback: (error: Error) => {
-                console.error('Error loading PDF:', error);
-            },
-        });
-    }, [url, setTotalPages]);
-
-    useEffect(() => {
-        const renderPage = async () => {
-            if (!pdf || !canvasRef.current) return;
-
-            try {
-                if (renderTaskRef.current) {
-                    renderTaskRef.current.cancel();
-                    renderTaskRef.current = null;
-                }
-
-                const page = await pdf.getPage(currentPage);
-                const viewport = page.getViewport({ scale: 1.5 });
-
-                const canvas = canvasRef.current;
-                const context = canvas.getContext('2d');
-
-                if (!context) return;
-
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                const renderContext = {
-                    canvasContext: context,
-                    viewport: viewport,
-                };
-
-                renderTaskRef.current = page.render(renderContext);
-                await renderTaskRef.current.promise;
-                renderTaskRef.current = null;
-
-                onPageLoad?.(page);
-            } catch (error) {
-                if (
-                    error instanceof Error &&
-                    error.message.includes('cancelled')
-                ) {
-                    return;
-                }
-                console.error('Error rendering page:', error);
-            }
-        };
-
-        renderPage();
-
-        return () => {
-            if (renderTaskRef.current) {
-                renderTaskRef.current.cancel();
-                renderTaskRef.current = null;
-            }
-        };
-    }, [pdf, currentPage, onPageLoad]);
-
-    useEffect(() => {
         if (!jsonData) {
             return;
         }
@@ -145,44 +83,31 @@ export const PDFViewer = ({
         const extractBoundingBoxes = () => {
             const boxes: BoundingBoxWithType[] = [];
 
-            // texts에서 bbox 추출
-            jsonData.texts.forEach((text) => {
-                text.prov?.forEach((p) => {
-                    if (p.page_no === currentPage) {
-                        boxes.push({
-                            ...p.bbox,
-                            type: 'text',
-                            ref: text.self_ref,
-                        });
-                    }
+            const extractFromItems = <
+                T extends {
+                    self_ref: string;
+                    prov?: Array<{ page_no: number; bbox: BoundingBox }>;
+                },
+            >(
+                items: T[],
+                type: string,
+            ) => {
+                items.forEach((item) => {
+                    item.prov?.forEach((p) => {
+                        if (p.page_no === currentPage) {
+                            boxes.push({
+                                ...p.bbox,
+                                type,
+                                ref: item.self_ref,
+                            });
+                        }
+                    });
                 });
-            });
+            };
 
-            // pictures에서 bbox 추출
-            jsonData.pictures.forEach((picture) => {
-                picture.prov?.forEach((p) => {
-                    if (p.page_no === currentPage) {
-                        boxes.push({
-                            ...p.bbox,
-                            type: 'picture',
-                            ref: picture.self_ref,
-                        });
-                    }
-                });
-            });
-
-            // tables에서 bbox 추출
-            jsonData.tables.forEach((table) => {
-                table.prov?.forEach((p) => {
-                    if (p.page_no === currentPage) {
-                        boxes.push({
-                            ...p.bbox,
-                            type: 'table',
-                            ref: table.self_ref,
-                        });
-                    }
-                });
-            });
+            extractFromItems(jsonData.texts, 'text');
+            extractFromItems(jsonData.pictures, 'picture');
+            extractFromItems(jsonData.tables, 'table');
 
             setBoundingBoxes(boxes);
         };
@@ -196,13 +121,7 @@ export const PDFViewer = ({
             const box = boundingBoxes.find((b) => b.ref === highlightedRef);
 
             if (box) {
-                setCurrentHighlight({
-                    l: box.l,
-                    t: box.t,
-                    r: box.r,
-                    b: box.b,
-                    coord_origin: box.coord_origin,
-                });
+                setCurrentHighlight({ ...box });
 
                 // Preview에서 클릭했을 때만 스크롤 동작
                 if (viewerContainerRef.current && !mousePosition) {
@@ -247,13 +166,7 @@ export const PDFViewer = ({
             });
 
             if (currentBox) {
-                setCurrentHighlight({
-                    l: currentBox.l,
-                    t: currentBox.t,
-                    r: currentBox.r,
-                    b: currentBox.b,
-                    coord_origin: currentBox.coord_origin,
-                });
+                setCurrentHighlight({ ...currentBox });
                 setHighlightedRef(currentBox.ref);
             } else {
                 setCurrentHighlight(null);
