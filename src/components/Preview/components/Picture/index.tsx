@@ -1,7 +1,7 @@
 import { RefObject } from 'react';
 import { PictureItem } from '@/types';
 import { BaseProps } from '../../type';
-import { ChildrenRenderer } from '../ChildrenRenderer';
+import { NodeRenderer } from '../NodeRenderer';
 import { ImageContainer, ImagePreview } from './style';
 
 interface PictureProps extends BaseProps {
@@ -12,11 +12,10 @@ export const Picture = ({
     picture,
     data,
     isHighlighted,
-    highlightedRef,
     highlightedElementRef,
     onHighlightChange,
 }: PictureProps) => {
-    const { image, label, children, self_ref } = picture;
+    const { children, image, label, self_ref } = picture;
     const { size, uri } = image;
 
     return (
@@ -37,15 +36,18 @@ export const Picture = ({
                     alt={label}
                 />
             </ImageContainer>
-            {children && (
-                <ChildrenRenderer
-                    children={children}
+            {children?.map((child) => (
+                <NodeRenderer
+                    key={child.$ref}
+                    node={{
+                        ...child,
+                        type: 'node',
+                        self_ref: child.$ref,
+                    }}
                     data={data}
-                    highlightedRef={highlightedRef}
                     highlightedElementRef={highlightedElementRef}
-                    onHighlightChange={onHighlightChange}
                 />
-            )}
+            ))}
         </>
     );
 };

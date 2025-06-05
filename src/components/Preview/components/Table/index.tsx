@@ -1,7 +1,7 @@
 import { RefObject } from 'react';
 import { TableItem } from '@/types';
 import { BaseProps } from '../../type';
-import { ChildrenRenderer } from '../ChildrenRenderer';
+import { NodeRenderer } from '../NodeRenderer';
 import { TablePreview } from './style';
 
 interface TableProps extends BaseProps {
@@ -10,14 +10,13 @@ interface TableProps extends BaseProps {
 
 export const Table = ({
     table,
-    data: jsonData,
+    data,
     isHighlighted,
-    highlightedRef,
     highlightedElementRef,
     onHighlightChange,
 }: TableProps) => {
-    const { data, children, self_ref } = table;
-    const { grid, num_cols } = data;
+    const { children, self_ref, data: tableData } = table;
+    const { grid, num_cols } = tableData;
 
     const rowSpanTracker: number[] = new Array(num_cols).fill(0);
 
@@ -75,15 +74,18 @@ export const Table = ({
                     })}
                 </tbody>
             </TablePreview>
-            {children && (
-                <ChildrenRenderer
-                    children={children}
-                    data={jsonData}
-                    highlightedRef={highlightedRef}
+            {children?.map((child) => (
+                <NodeRenderer
+                    key={child.$ref}
+                    node={{
+                        ...child,
+                        type: 'node',
+                        self_ref: child.$ref,
+                    }}
+                    data={data}
                     highlightedElementRef={highlightedElementRef}
-                    onHighlightChange={onHighlightChange}
                 />
-            )}
+            ))}
         </>
     );
 };

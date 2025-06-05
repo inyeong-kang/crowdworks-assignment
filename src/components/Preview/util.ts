@@ -1,3 +1,5 @@
+import { DoclingDocument, DoclingNode } from '@/types';
+
 interface FindItemParams<T> {
     items: T[];
     nodeRef: string;
@@ -25,4 +27,43 @@ export const checkItemInCurrentPage = <
     return item?.prov
         ? item.prov.some((p) => p.page_no === currentPage)
         : false;
+};
+
+export const isNodeInCurrentPage = (
+    node: DoclingNode,
+    data: DoclingDocument,
+    currentPage: number,
+): boolean => {
+    if (!node.$ref) return false;
+
+    const checkData = { nodeRef: node.$ref, currentPage };
+
+    if (
+        checkItemInCurrentPage({
+            items: data.texts,
+            ...checkData,
+        }) ||
+        checkItemInCurrentPage({
+            items: data.pictures,
+            ...checkData,
+        }) ||
+        checkItemInCurrentPage({
+            items: data.tables,
+            ...checkData,
+        })
+    )
+        return true;
+
+    const group = findItemInData({
+        items: data.groups,
+        nodeRef: node.$ref,
+    });
+
+    if (group?.children) {
+        return group.children.some((child) =>
+            isNodeInCurrentPage(child, data, currentPage),
+        );
+    }
+
+    return false;
 };

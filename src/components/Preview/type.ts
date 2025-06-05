@@ -10,6 +10,6 @@ export interface BaseProps {
     data: DoclingDocument;
     isHighlighted: boolean;
     highlightedRef: string | null;
-    highlightedElementRef: RefObject<HTMLElement | null>;
+    highlightedElementRef: RefObject<HTMLElement>;
     onHighlightChange: (ref: string | null) => void;
 }
