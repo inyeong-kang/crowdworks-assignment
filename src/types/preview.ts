@@ -7,6 +7,11 @@ export interface BoundingBox {
     text?: string;
 }
 
+export interface BoundingBoxWithType extends BoundingBox {
+    type: string;
+    ref: string;
+}
+
 export interface Prov {
     page_no: number;
     bbox: BoundingBox;
