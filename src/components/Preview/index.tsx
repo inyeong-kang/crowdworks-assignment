@@ -4,6 +4,7 @@ import { useHighlight } from '@/contexts/highlight';
 import { DoclingDocument, DoclingNode } from '@/types';
 import { Picture, Table, Text } from './components';
 import { S } from './style';
+import { checkItemInCurrentPage, findItemInData } from './util';
 
 interface PreviewProps {
     data: DoclingDocument;
@@ -15,22 +16,32 @@ export const Preview = ({ data }: PreviewProps) => {
     const { highlightedRef, setHighlightedRef } = useHighlight();
 
     const isNodeInCurrentPage = (node: DoclingNode): boolean => {
-        const textItem = data.texts.find((text) => text.self_ref === node.$ref);
-        const picture = data.pictures.find((pic) => pic.self_ref === node.$ref);
-        const table = data.tables.find((tbl) => tbl.self_ref === node.$ref);
+        if (!node.$ref) return false;
 
-        if (textItem?.prov) {
-            return textItem.prov.some((p) => p.page_no === currentPage);
-        }
-        if (picture?.prov) {
-            return picture.prov.some((p) => p.page_no === currentPage);
-        }
-        if (table?.prov) {
-            return table.prov.some((p) => p.page_no === currentPage);
-        }
+        const checkData = { nodeRef: node.$ref, currentPage };
+
+        if (
+            checkItemInCurrentPage({
+                items: data.texts,
+                ...checkData,
+            }) ||
+            checkItemInCurrentPage({
+                items: data.pictures,
+                ...checkData,
+            }) ||
+            checkItemInCurrentPage({
+                items: data.tables,
+                ...checkData,
+            })
+        )
+            return true;
 
         // 그룹의 경우 자식 노드들 중 하나라도 현재 페이지에 있으면 표시
-        const group = data.groups.find((group) => group.self_ref === node.$ref);
+        const group = findItemInData({
+            items: data.groups,
+            nodeRef: node.$ref,
+        });
+
         if (group?.children) {
             return group.children.some((child) => isNodeInCurrentPage(child));
         }
@@ -44,10 +55,24 @@ export const Preview = ({ data }: PreviewProps) => {
             return null;
         }
 
-        const textItem = data.texts.find((text) => text.self_ref === node.$ref);
-        const group = data.groups.find((group) => group.self_ref === node.$ref);
-        const picture = data.pictures.find((pic) => pic.self_ref === node.$ref);
-        const table = data.tables.find((tbl) => tbl.self_ref === node.$ref);
+        if (!node.$ref) return null;
+
+        const textItem = findItemInData({
+            items: data.texts,
+            nodeRef: node.$ref,
+        });
+        const group = findItemInData({
+            items: data.groups,
+            nodeRef: node.$ref,
+        });
+        const picture = findItemInData({
+            items: data.pictures,
+            nodeRef: node.$ref,
+        });
+        const table = findItemInData({
+            items: data.tables,
+            nodeRef: node.$ref,
+        });
 
         const isHighlighted = node.$ref === highlightedRef;
 
